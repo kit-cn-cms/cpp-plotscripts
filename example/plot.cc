@@ -181,10 +181,10 @@ void plot(){
     LV v_jet1;
     LV v_jet2;
     if(N_Jets>0){
-      getLV(Jet_Pt[0],Jet_Eta[0],Jet_Phi[0],Jet_E[0]);
+      v_jet1=getLV(Jet_Pt[0],Jet_Eta[0],Jet_Phi[0],Jet_E[0]);
     }
     if(N_Jets>1){
-      getLV(Jet_Pt[1],Jet_Eta[1],Jet_Phi[1],Jet_E[1]);
+      v_jet2=getLV(Jet_Pt[1],Jet_Eta[1],Jet_Phi[1],Jet_E[1]);
     }
     float dr_j1_j2 = v_jet1.DeltaR(v_jet2);
     h_Dr_Jet1_Jet2->Fill(dr_j1_j2);
