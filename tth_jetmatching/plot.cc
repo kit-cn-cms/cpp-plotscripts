@@ -1,10 +1,12 @@
 #include "TChain.h"
+#include "TBrowser.h"
 #include "TBranch.h"
 #include "TFile.h"
 #include "TH1F.h"
 #include "TH2F.h"
 #include "TVector2.h"
 #include "TLorentzVector.h"
+#include "TPrincipal.h"
 #include <iostream>
 #include <string>
 #include <sstream>
@@ -56,7 +58,11 @@ void GetNuVecs(const TLorentzVector & lepvec, const TVector2 & metvec, TLorentzV
   nu2.SetPxPyPzE(metvec.Px(),metvec.Py(),pz2,sqrt(metvec.Mod2()+pz2*pz2));
 }
 
+void pca(float mw, float mt, float& mw_new , float& mt_new){
+  mt_new=(mw-83.7)/21.+(mt-172.5)/33.2;
+  mw_new=(mw-83.7)/21.-(mt-172.5)/33.2;
 
+}
 
 void plot(){
   TH1F::SetDefaultSumw2();
@@ -65,6 +71,7 @@ void plot(){
   TChain* chain = new TChain("MVATree");
   char* filenames = getenv ("FILENAMES");
   char* outfilename = getenv ("OUTFILENAME");
+  //  int maxevents = atoi(getenv ("MAXEVENTS"));
   string buf;
   stringstream ss(filenames); 
   while (ss >> buf){
@@ -182,21 +189,40 @@ void plot(){
   chain->SetBranchAddress("GenHiggs_B1_Phi",&GenHiggs_B1_Phi);
   float GenHiggs_B2_Phi;
   chain->SetBranchAddress("GenHiggs_B2_Phi",&GenHiggs_B2_Phi);
+  int N_AdditionalGenBJets;
+  chain->SetBranchAddress("N_AdditionalGenBJets",&N_AdditionalGenBJets);
+  float* AdditionalGenBJet_Pt = new float[20];
+  chain->SetBranchAddress("AdditionalGenBJet_Pt",AdditionalGenBJet_Pt);
+  float* AdditionalGenBJet_Eta = new float[20];
+  chain->SetBranchAddress("AdditionalGenBJet_Eta",AdditionalGenBJet_Eta);
+  float* AdditionalGenBJet_Phi = new float[20];
+  chain->SetBranchAddress("AdditionalGenBJet_Phi",AdditionalGenBJet_Phi);
+  float* AdditionalGenBJet_E = new float[20];
+  chain->SetBranchAddress("AdditionalGenBJet_E",AdditionalGenBJet_E);
+
   
   // histos
 
   TH1F* h_M_Higgs_all=new TH1F("M_Higgs_all","M_Higgs_all",60,0,300);
-  TH1F* h_M_TopHad_all=new TH1F("M_TopHad_all","M_TopHad_all",100,0,500);
   TH1F* h_M_TopLep_all=new TH1F("M_TopLep_all","M_TopLep_all",100,0,500);
   TH1F* h_M_WHad_all=new TH1F("M_WHad_all","M_WHad_all",60,0,300);
+  TH1F* h_M_TopHad_all=new TH1F("M_TopHad_all","M_TopHad_all",100,0,500);
   TH2F* h_M_WHad_vs_M_TopHad_all=new TH2F("h_M_WHad_vs_M_TopHad_all","h_M_WHad_vs_M_TopHad_all",30,0,300,50,0,500);
   TH1F* h_M_WLep_all=new TH1F("M_WLep_all","M_WLep_all",60,0,300);
+  TH1F* h_M_WHad_pca_all=new TH1F("M_WHad_pca_all","M_WHad_pca_all",100,-4,4);
+  TH1F* h_M_TopHad_pca_all=new TH1F("M_TopHad_pca_all","M_TopHad_pca_all",100,-10,10);
+  TH2F* h_M_WHad_vs_M_TopHad_pca_all=new TH2F("h_M_WHad_vs_M_TopHad_pca_all","h_M_WHad_vs_M_TopHad_pca_all",100,-4,4,100,-4,4);
 
   TH1F* h_M_Higgs_reco=new TH1F("M_Higgs_reco","M_Higgs_reco",60,0,300);
   TH1F* h_M_TopHad_reco=new TH1F("M_TopHad_reco","M_TopHad_reco",100,0,500);
   TH1F* h_M_TopLep_reco=new TH1F("M_TopLep_reco","M_TopLep_reco",100,0,500);
   TH1F* h_M_WHad_reco=new TH1F("M_WHad_reco","M_WHad_reco",60,0,300);
+  TH1F* h_M_WHad_pca_reco=new TH1F("M_WHad_pca_reco","M_WHad_pca_reco",100,-4,4);
+  TH1F* h_M_TopHad_pca_reco=new TH1F("M_TopHad_pca_reco","M_TopHad_pca_reco",100,-10,10);
   TH2F* h_M_WHad_vs_M_TopHad_reco=new TH2F("h_M_WHad_vs_M_TopHad_reco","h_M_WHad_vs_M_TopHad_reco",30,0,300,50,0,500);
+  TH2F* h_M_WHad_vs_M_TopHad_pca_reco=new TH2F("h_M_WHad_vs_M_TopHad_pca_reco","h_M_WHad_vs_M_TopHad_pca_reco",100,-4,4,100,-4,4);
+  TPrincipal* prince = new TPrincipal(2);
+  double* data = new double[2];
   TH1F* h_M_WLep_reco=new TH1F("M_WLep_reco","M_WLep_reco",60,0,300);
 
   TH1F* h_M_Higgs_parton=new TH1F("M_Higgs_parton","M_Higgs_parton",60,0,300);
@@ -260,6 +286,25 @@ void plot(){
   TH1F* h_N_BTagsM_2b=new TH1F("N_BTagsM_2b","N_BTagsM_2b",6,-0.5,5.5);
   TH1F* h_N_BTagsT_2b=new TH1F("N_BTagsT_2b","N_BTagsT_2b",6,-0.5,5.5);
 
+  TH1F* h_M_Total_recoall=new TH1F("M_Total_recoall","M_Total_recoall",60,0,3000);
+  TH1F* h_Pt_Total_recoall=new TH1F("Pt_Total_recoall","Pt_Total_recoall",50,0,500);
+
+  TH1F* h_Pt_Total_recoall_6j=new TH1F("Pt_Total_recoall_6j","Pt_Total_recoall_6j",50,0,500);
+  TH1F* h_Pt_Total_recoall_7j=new TH1F("Pt_Total_recoall_7j","Pt_Total_recoall_7j",50,0,500);
+  TH1F* h_Pt_Total_recoall_8j=new TH1F("Pt_Total_recoall_8j","Pt_Total_recoall_8j",50,0,500);
+  TH1F* h_Pt_Total_recoall_9j=new TH1F("Pt_Total_recoall_9j","Pt_Total_recoall_9j",50,0,500);
+  TH1F* h_Pt_Total_recoall_10j=new TH1F("Pt_Total_recoall_10j","Pt_Total_recoall_10j",50,0,500);
+
+
+  TH1F* h_B1_pt_reco=new TH1F("B1_pt_reco","B1_pt_reco",30,0,300);
+  TH1F* h_B2_pt_reco=new TH1F("B2_pt_reco","B2_pt_reco",30,0,300);
+  TH1F* h_BLep_pt_reco=new TH1F("BLep_pt_reco","BLep_pt_reco",30,0,300);
+  TH1F* h_BHad_pt_reco=new TH1F("BHad_pt_reco","BHad_pt_reco",30,0,300);
+  TH1F* h_Q1_pt_reco=new TH1F("Q1_pt_reco","Q1_pt_reco",30,0,300);
+  TH1F* h_Q2_pt_reco=new TH1F("Q2_pt_reco","Q2_pt_reco",30,0,300);
+
+
+
   // loop
   long nentries = chain->GetEntries(); 
   cout << "total number of events: " << nentries << endl;
@@ -272,19 +317,28 @@ void plot(){
     chain->GetEntry(iEntry); 
     // event selection
     // recect non-semileptonic
-    if(N_Jets<6||N_GenTopHad!=1||N_GenTopLep!=1||GenHiggs_Pt<0||GenHiggs_B1_Pt<0.1) continue;
+    if(N_Jets<6||N_GenTopHad!=1||N_GenTopLep!=1) continue;
 
     TLorentzVector vHiggs_true=getLV(GenHiggs_Pt,GenHiggs_Eta,GenHiggs_Phi);
     TLorentzVector vTopHad_true=getLV(GenTopHad_Pt[0],GenTopHad_Eta[0],GenTopHad_Phi[0]);
     TLorentzVector vTopLep_true=getLV(GenTopLep_Pt[0],GenTopLep_Eta[0],GenTopLep_Phi[0]);
-    TLorentzVector vB1_true=getLV(GenHiggs_B1_Pt,GenHiggs_B1_Eta,GenHiggs_B1_Phi);
-    TLorentzVector vB2_true=getLV(GenHiggs_B2_Pt,GenHiggs_B2_Eta,GenHiggs_B2_Phi);
     TLorentzVector vQ1_true=getLV(GenTopHad_Q1_Pt[0],GenTopHad_Q1_Eta[0],GenTopHad_Q1_Phi[0]);
     TLorentzVector vQ2_true=getLV(GenTopHad_Q2_Pt[0],GenTopHad_Q2_Eta[0],GenTopHad_Q2_Phi[0]);
     TLorentzVector vBHad_true=getLV(GenTopHad_B_Pt[0],GenTopHad_B_Eta[0],GenTopHad_B_Phi[0]);
     TLorentzVector vNu_true=getLV(GenTopLep_Nu_Pt[0],GenTopLep_Nu_Eta[0],GenTopLep_Nu_Phi[0]);
     TLorentzVector vLep_true=getLV(GenTopLep_Lep_Pt[0],GenTopLep_Lep_Eta[0],GenTopLep_Lep_Phi[0]);
     TLorentzVector vBLep_true=getLV(GenTopLep_B_Pt[0],GenTopLep_B_Eta[0],GenTopLep_B_Phi[0]);
+    TLorentzVector vB1_true;
+    TLorentzVector vB2_true;
+    if(GenHiggs_B1_Pt>0.1){
+      vB1_true=getLV(GenHiggs_B1_Pt,GenHiggs_B1_Eta,GenHiggs_B1_Phi);
+      vB2_true=getLV(GenHiggs_B2_Pt,GenHiggs_B2_Eta,GenHiggs_B2_Phi);
+    }
+    else if(N_AdditionalGenBJets>=2){
+      vB1_true=getLV(AdditionalGenBJet_Pt[0],AdditionalGenBJet_Eta[0],AdditionalGenBJet_Phi[0],AdditionalGenBJet_E[0]);
+      vB2_true=getLV(AdditionalGenBJet_Pt[1],AdditionalGenBJet_Eta[1],AdditionalGenBJet_Phi[1],AdditionalGenBJet_E[1]);
+    }
+    else continue;
 
     h_M_Higgs_parton->Fill((vB1_true+vB2_true).M(),Weight);
     h_M_TopHad_parton->Fill((vQ2_true+vQ1_true+vBHad_true).M(),Weight);
@@ -378,7 +432,7 @@ void plot(){
 			    ncombis++;
 			    
 			    
-			    const float maxdr=0.5;
+			    const float maxdr=0.2;
 			    float drQ1=jetvecs[iQ1].DeltaR(vQ1_true);
 			    bool matchQ1=drQ1<maxdr;
 			    float drQ2=jetvecs[iQ2].DeltaR(vQ2_true);
@@ -515,6 +569,7 @@ void plot(){
     for(uint iB1=0; iB1<jetvecs.size();iB1++){
       for(uint iB2=0; iB2<jetvecs.size();iB2++){
 	if(iB1<=iB2) continue;
+	if(Jet_CSV[iB1]<.89||Jet_CSV[iB2]<.89) continue;
 	h_M_Higgs_all->Fill((jetvecs[iB1]+jetvecs[iB2]).M(),Weight);
       }
     }
@@ -523,9 +578,19 @@ void plot(){
 	if(iQ1<=iQ2) continue;
 	h_M_WHad_all->Fill((jetvecs[iQ1]+jetvecs[iQ2]).M(),Weight);
 	for(uint iBHad=0; iBHad<jetvecs.size();iBHad++){
-	  if(iBHad!=iQ2&&iBHad!=iQ1) continue;
-	  h_M_TopHad_all->Fill((jetvecs[iBHad]+jetvecs[iQ1]+jetvecs[iQ2]).M(),Weight);
-	  h_M_WHad_vs_M_TopHad_all->Fill((jetvecs[iQ1]+jetvecs[iQ2]).M(),(jetvecs[iBHad]+jetvecs[iQ1]+jetvecs[iQ2]).M(),Weight);
+	  if(iBHad==iQ2||iBHad==iQ1) continue;
+	  if(Jet_CSV[iBHad]<.89) continue;
+	  float M_TopHad_all=(jetvecs[iBHad]+jetvecs[iQ1]+jetvecs[iQ2]).M();
+	  float M_WHad_all=(jetvecs[iQ1]+jetvecs[iQ2]).M();
+	  h_M_TopHad_all->Fill(M_TopHad_all,Weight);
+	  h_M_WHad_vs_M_TopHad_all->Fill(M_WHad_all,M_TopHad_all,Weight);
+	  float pca0;
+	  float pca1;
+	  pca(M_WHad_all,M_TopHad_all,pca0,pca1);
+	  h_M_WHad_vs_M_TopHad_pca_all->Fill(pca0,pca1,Weight);
+	  h_M_TopHad_pca_all->Fill(pca1);
+	  h_M_WHad_pca_all->Fill(pca0);
+
 	}
       }
     }
@@ -537,6 +602,7 @@ void plot(){
 	h_M_WLep_all->Fill((lepvec+nuvec2).M(),Weight);		    
       }     
       for(uint iBLep=0; iBLep<jetvecs.size();iBLep++){
+	if(Jet_CSV[iBLep]<.89) continue;
 	if(iNu==1){
 	  h_M_TopLep_all->Fill((jetvecs[iBLep]+lepvec+nuvec1).M(),Weight);
 	}
@@ -545,6 +611,7 @@ void plot(){
 	}     
       }
     }
+
     
     nAll++;
     if(matchable)
@@ -589,12 +656,22 @@ void plot(){
       else
 	M_WLep_reco=(lepvec+nuvec2).M();
     }
-    float maxdr=0.3;
+    float maxdr=0.2;
     if(minDrB1<maxdr&&minDrB2<maxdr)
       h_M_Higgs_reco->Fill(M_Higgs_reco,Weight);
     if(minDrQ1<maxdr&&minDrQ2<maxdr&&minDrBHad<maxdr){
       h_M_TopHad_reco->Fill(M_TopHad_reco,Weight);
       h_M_WHad_vs_M_TopHad_reco->Fill(M_WHad_reco,M_TopHad_reco,Weight);
+      data[0]=M_WHad_reco;
+      data[1]=M_TopHad_reco;
+      prince->AddRow(data);
+      float pca0;
+      float pca1;
+      pca(M_WHad_reco,M_TopHad_reco,pca0,pca1);
+      h_M_WHad_vs_M_TopHad_pca_reco->Fill(pca0,pca1,Weight);
+      h_M_TopHad_pca_reco->Fill(pca1,Weight);
+      h_M_WHad_pca_reco->Fill(pca0,Weight);
+      
     }
     if(minDrBHad<maxdr)
       h_M_TopLep_reco->Fill(M_TopLep_reco,Weight);
@@ -619,6 +696,7 @@ void plot(){
 	h_M_TopHad_recoall->Fill(M_TopHad_recoall,Weight);
 	h_M_WHad_recoall->Fill(M_WHad_recoall,Weight);
 	h_M_WHad_vs_M_TopHad_recoall->Fill(M_WHad_recoall,M_TopHad_recoall,Weight);
+		
       }
       if(bestQ1all>-1 && bestQ2all>-1){
     	M_WHad_recoall=(jetvecs[bestQ1all]+jetvecs[bestQ2all]).M();
@@ -640,6 +718,24 @@ void plot(){
 	  M_WLep_recoall=(lepvec+nuvec2).M();
 	h_M_WLep_recoall->Fill(M_WLep_recoall,Weight);
       }
+
+      TLorentzVector p4_total;
+      p4_total+=jetvecs[bestB1all];
+      p4_total+=jetvecs[bestB2all];
+      p4_total+=jetvecs[bestQ1all];
+      p4_total+=jetvecs[bestQ2all];
+      p4_total+=jetvecs[bestBHadall];
+      p4_total+=jetvecs[bestBLepall];
+      p4_total+=lepvec;
+      if(bestNuall==1)
+	p4_total+=nuvec1;
+      else
+	p4_total+=nuvec2;
+
+      h_M_Total_recoall->Fill(p4_total.M());
+      h_Pt_Total_recoall->Fill(p4_total.Pt());
+
+
     }
 
 
@@ -747,139 +843,168 @@ void plot(){
     }
     
   }
+  // Do the actual analysis
+  prince->MakePrincipals();
+  
+  // Print out the result on
+  prince->Print();
+
+  // Test the PCA 
+  prince->Test();
+  prince->MakeCode();
+  TBrowser* b = new TBrowser("principalBrowser", prince);
   // write
   TFile* outfile=new TFile(outfilename,"RECREATE");    
   outfile->cd();
-  h_M_Higgs_reco->Scale(1./h_M_Higgs_reco->Integral());
+  h_M_Higgs_reco->Scale(1./h_M_Higgs_reco->Integral("width"));
   h_M_Higgs_reco->Write();
-  h_M_TopHad_reco->Scale(1./h_M_TopHad_reco->Integral());
+  h_M_TopHad_reco->Scale(1./h_M_TopHad_reco->Integral("width"));
   h_M_TopHad_reco->Write();
-  h_M_TopLep_reco->Scale(1./h_M_TopLep_reco->Integral());
+  h_M_TopLep_reco->Scale(1./h_M_TopLep_reco->Integral("width"));
   h_M_TopLep_reco->Write();
-  h_M_WHad_reco->Scale(1./h_M_WHad_reco->Integral());
+  h_M_WHad_reco->Scale(1./h_M_WHad_reco->Integral("width"));
   h_M_WHad_reco->Write();
-  h_M_WHad_vs_M_TopHad_reco->Scale(1./h_M_WHad_vs_M_TopHad_reco->Integral());
+  h_M_WHad_vs_M_TopHad_reco->Scale(1./h_M_WHad_vs_M_TopHad_reco->Integral("width"));
   h_M_WHad_vs_M_TopHad_reco->Write();
-  h_M_WLep_reco->Scale(1./h_M_WLep_reco->Integral());
+  h_M_WHad_vs_M_TopHad_pca_reco->Scale(1./h_M_WHad_vs_M_TopHad_pca_reco->Integral("width"));
+  h_M_WHad_vs_M_TopHad_pca_reco->Write();
+  h_M_TopHad_pca_reco->Scale(1./h_M_TopHad_pca_reco->Integral("width"));
+  h_M_TopHad_pca_reco->Write();
+  h_M_WHad_pca_reco->Scale(1./h_M_WHad_pca_reco->Integral("width"));
+  h_M_WHad_pca_reco->Write();
+
+  h_M_WLep_reco->Scale(1./h_M_WLep_reco->Integral("width"));
   h_M_WLep_reco->Write();
   
-  h_M_Higgs_recoall->Scale(1./h_M_Higgs_recoall->Integral());
+  h_M_Higgs_recoall->Scale(1./h_M_Higgs_recoall->Integral("width"));
   h_M_Higgs_recoall->Write();
-  h_M_TopHad_recoall->Scale(1./h_M_TopHad_recoall->Integral());
+  h_M_TopHad_recoall->Scale(1./h_M_TopHad_recoall->Integral("width"));
   h_M_TopHad_recoall->Write();
-  h_M_TopLep_recoall->Scale(1./h_M_TopLep_recoall->Integral());
+  h_M_TopLep_recoall->Scale(1./h_M_TopLep_recoall->Integral("width"));
   h_M_TopLep_recoall->Write();
-  h_M_WHad_recoall->Scale(1./h_M_WHad_recoall->Integral());
+  h_M_WHad_recoall->Scale(1./h_M_WHad_recoall->Integral("width"));
   h_M_WHad_recoall->Write();
-  h_M_WHad_vs_M_TopHad_recoall->Scale(1./h_M_WHad_vs_M_TopHad_recoall->Integral());
+  h_M_WHad_vs_M_TopHad_recoall->Scale(1./h_M_WHad_vs_M_TopHad_recoall->Integral("width"));
   h_M_WHad_vs_M_TopHad_recoall->Write();
-  h_M_WLep_recoall->Scale(1./h_M_WLep_recoall->Integral());
+  h_M_WLep_recoall->Scale(1./h_M_WLep_recoall->Integral("width"));
   h_M_WLep_recoall->Write();
 
-  h_M_Higgs_best->Scale(1./h_M_Higgs_best->Integral());
+  h_M_Total_recoall->Scale(1./h_M_Total_recoall->Integral("width"));
+  h_M_Total_recoall->Write();
+  h_Pt_Total_recoall->Scale(1./h_Pt_Total_recoall->Integral("width"));
+  h_Pt_Total_recoall->Write();
+
+  h_M_Higgs_best->Scale(1./h_M_Higgs_best->Integral("width"));
   h_M_Higgs_best->Write();
-  h_M_TopHad_best->Scale(1./h_M_TopHad_best->Integral());
+  h_M_TopHad_best->Scale(1./h_M_TopHad_best->Integral("width"));
   h_M_TopHad_best->Write();
-  h_M_TopHad_best_special->Scale(1./h_M_TopHad_best_special->Integral());
+  h_M_TopHad_best_special->Scale(1./h_M_TopHad_best_special->Integral("width"));
   h_M_TopHad_best_special->Write();
-  h_M_TopLep_best->Scale(1./h_M_TopLep_best->Integral());
+  h_M_TopLep_best->Scale(1./h_M_TopLep_best->Integral("width"));
   h_M_TopLep_best->Write();
-  h_M_WHad_best->Scale(1./h_M_WHad_best->Integral());
+  h_M_WHad_best->Scale(1./h_M_WHad_best->Integral("width"));
   h_M_WHad_best->Write();
-  h_M_WHad_vs_M_TopHad_best->Scale(1./h_M_WHad_vs_M_TopHad_best->Integral());
+  h_M_WHad_vs_M_TopHad_best->Scale(1./h_M_WHad_vs_M_TopHad_best->Integral("width"));
   h_M_WHad_vs_M_TopHad_best->Write();
-  h_M_WLep_best->Scale(1./h_M_WLep_best->Integral());
+  h_M_WLep_best->Scale(1./h_M_WLep_best->Integral("width"));
   h_M_WLep_best->Write();
-  h_CSV_Higgs_best->Scale(1./h_CSV_Higgs_best->Integral());
+  h_CSV_Higgs_best->Scale(1./h_CSV_Higgs_best->Integral("width"));
   h_CSV_Higgs_best->Write();
-  h_CSV_WHad_best->Scale(1./h_CSV_WHad_best->Integral());
+  h_CSV_WHad_best->Scale(1./h_CSV_WHad_best->Integral("width"));
   h_CSV_WHad_best->Write();
-  h_CSV_TopHad_best->Scale(1./h_CSV_TopHad_best->Integral());
+  h_CSV_TopHad_best->Scale(1./h_CSV_TopHad_best->Integral("width"));
   h_CSV_TopHad_best->Write();
-  h_CSV_TopLep_best->Scale(1./h_CSV_TopLep_best->Integral());
+  h_CSV_TopLep_best->Scale(1./h_CSV_TopLep_best->Integral("width"));
   h_CSV_TopLep_best->Write();
 
 
-  h_M_Higgs_all->Scale(1./h_M_Higgs_all->Integral());
+  h_M_Higgs_all->Scale(1./h_M_Higgs_all->Integral("width"));
   h_M_Higgs_all->Write();
-  h_M_TopHad_all->Scale(1./h_M_TopHad_all->Integral());
+  h_M_TopHad_all->Scale(1./h_M_TopHad_all->Integral("width"));
   h_M_TopHad_all->Write();
-  h_M_TopLep_all->Scale(1./h_M_TopLep_all->Integral());
+  h_M_TopLep_all->Scale(1./h_M_TopLep_all->Integral("width"));
   h_M_TopLep_all->Write();
-  h_M_WHad_all->Scale(1./h_M_WHad_all->Integral());
+  h_M_WHad_all->Scale(1./h_M_WHad_all->Integral("width"));
   h_M_WHad_all->Write();
-  h_M_WHad_vs_M_TopHad_all->Scale(1./h_M_WHad_vs_M_TopHad_all->Integral());
+  h_M_WHad_vs_M_TopHad_all->Scale(1./h_M_WHad_vs_M_TopHad_all->Integral("width"));
   h_M_WHad_vs_M_TopHad_all->Write();
-  h_M_WLep_all->Scale(1./h_M_WLep_all->Integral());
+  h_M_WLep_all->Scale(1./h_M_WLep_all->Integral("width"));
   h_M_WLep_all->Write();
+  h_M_TopHad_pca_all->Scale(1./h_M_TopHad_pca_all->Integral("width"));
+  h_M_TopHad_pca_all->Write();
+  h_M_WHad_pca_all->Scale(1./h_M_WHad_pca_all->Integral("width"));
+  h_M_WHad_pca_all->Write();
+  h_M_WHad_vs_M_TopHad_pca_all->Scale(1./h_M_WHad_vs_M_TopHad_pca_all->Integral("width"));
+  h_M_WHad_vs_M_TopHad_pca_all->Write();
 
-  h_M_Higgs_parton->Scale(1./h_M_Higgs_parton->Integral());
+
+  h_M_Higgs_parton->Scale(1./h_M_Higgs_parton->Integral("width"));
   h_M_Higgs_parton->Write();
-  h_M_TopHad_parton->Scale(1./h_M_TopHad_parton->Integral());
+  h_M_TopHad_parton->Scale(1./h_M_TopHad_parton->Integral("width"));
   h_M_TopHad_parton->Write();
-  h_M_TopLep_parton->Scale(1./h_M_TopLep_parton->Integral());
+  h_M_TopLep_parton->Scale(1./h_M_TopLep_parton->Integral("width"));
   h_M_TopLep_parton->Write();
-  h_M_WHad_parton->Scale(1./h_M_WHad_parton->Integral()); 
+  h_M_WHad_parton->Scale(1./h_M_WHad_parton->Integral("width")); 
   h_M_WHad_parton->Write();
-  h_M_WHad_vs_M_TopHad_parton->Scale(1./h_M_WHad_vs_M_TopHad_parton->Integral());
+  h_M_WHad_vs_M_TopHad_parton->Scale(1./h_M_WHad_vs_M_TopHad_parton->Integral("width"));
   h_M_WHad_vs_M_TopHad_parton->Write();
-  h_M_WLep_parton->Scale(1./h_M_WLep_parton->Integral());
+  h_M_WLep_parton->Scale(1./h_M_WLep_parton->Integral("width"));
   h_M_WLep_parton->Write();
 
-  h_CSV_b->Scale(1./h_CSV_b->Integral());
+  h_CSV_b->Scale(1./h_CSV_b->Integral("width"));
   h_CSV_b->Write();
-  h_CSV_c->Scale(1./h_CSV_c->Integral());
+  h_CSV_c->Scale(1./h_CSV_c->Integral("width"));
   h_CSV_c->Write();
-  h_CSV_l_w_c->Scale(1./h_CSV_l_w_c->Integral());
+  h_CSV_l_w_c->Scale(1./h_CSV_l_w_c->Integral("width"));
   h_CSV_l_w_c->Write();
-  h_CSV_l_wo_c->Scale(1./h_CSV_l_wo_c->Integral());
+  h_CSV_l_wo_c->Scale(1./h_CSV_l_wo_c->Integral("width"));
   h_CSV_l_wo_c->Write();
 
-  h_N_BTagsM->Scale(1./h_N_BTagsM->Integral());
+  h_N_BTagsM->Scale(1./h_N_BTagsM->Integral("width"));
   h_N_BTagsM->Write();
-  h_N_BTagsL->Scale(1./h_N_BTagsL->Integral());
+  h_N_BTagsL->Scale(1./h_N_BTagsL->Integral("width"));
   h_N_BTagsL->Write();
-  h_N_BTagsT->Scale(1./h_N_BTagsT->Integral());
+  h_N_BTagsT->Scale(1./h_N_BTagsT->Integral("width"));
   h_N_BTagsT->Write();
-  h_N_BTagsM_2b->Scale(1./h_N_BTagsM_2b->Integral());
+  h_N_BTagsM_2b->Scale(1./h_N_BTagsM_2b->Integral("width"));
   h_N_BTagsM_2b->Write();
-  h_N_BTagsL_2b->Scale(1./h_N_BTagsL_2b->Integral());
+  h_N_BTagsL_2b->Scale(1./h_N_BTagsL_2b->Integral("width"));
   h_N_BTagsL_2b->Write();
-  h_N_BTagsT_2b->Scale(1./h_N_BTagsT_2b->Integral());
+  h_N_BTagsT_2b->Scale(1./h_N_BTagsT_2b->Integral("width"));
   h_N_BTagsT_2b->Write();
-  h_N_BTagsM_3b->Scale(1./h_N_BTagsM_3b->Integral());
+  h_N_BTagsM_3b->Scale(1./h_N_BTagsM_3b->Integral("width"));
   h_N_BTagsM_3b->Write();
-  h_N_BTagsL_3b->Scale(1./h_N_BTagsL_3b->Integral());
+  h_N_BTagsL_3b->Scale(1./h_N_BTagsL_3b->Integral("width"));
   h_N_BTagsL_3b->Write();
-  h_N_BTagsT_3b->Scale(1./h_N_BTagsT_3b->Integral());
+  h_N_BTagsT_3b->Scale(1./h_N_BTagsT_3b->Integral("width"));
   h_N_BTagsT_3b->Write();
-  h_N_BTagsM_4b->Scale(1./h_N_BTagsM_4b->Integral());
+  h_N_BTagsM_4b->Scale(1./h_N_BTagsM_4b->Integral("width"));
   h_N_BTagsM_4b->Write();
-  h_N_BTagsL_4b->Scale(1./h_N_BTagsL_4b->Integral());
+  h_N_BTagsL_4b->Scale(1./h_N_BTagsL_4b->Integral("width"));
   h_N_BTagsL_4b->Write();
-  h_N_BTagsT_4b->Scale(1./h_N_BTagsT_4b->Integral());
+  h_N_BTagsT_4b->Scale(1./h_N_BTagsT_4b->Integral("width"));
   h_N_BTagsT_4b->Write();
 
-  h_nb->Scale(1./h_nb->Integral());
+  h_nb->Scale(1./h_nb->Integral("width"));
   h_nb->Write();
   
-  h_dr2->Scale(1./h_dr2->Integral());
+  h_dr2->Scale(1./h_dr2->Integral("width"));
   h_dr2->Write();
-  h_B1_dr->Scale(1./h_B1_dr->Integral());
+  h_B1_dr->Scale(1./h_B1_dr->Integral("width"));
   h_B1_dr->Write();
-  h_B2_dr->Scale(1./h_B2_dr->Integral());
+  h_B2_dr->Scale(1./h_B2_dr->Integral("width"));
   h_B2_dr->Write();
-  h_BLep_dr->Scale(1./h_BLep_dr->Integral());
+  h_BLep_dr->Scale(1./h_BLep_dr->Integral("width"));
   h_BLep_dr->Write();
-  h_BHad_dr->Scale(1./h_BHad_dr->Integral());
+  h_BHad_dr->Scale(1./h_BHad_dr->Integral("width"));
   h_BHad_dr->Write();
-  h_Q1_dr->Scale(1./h_Q1_dr->Integral());
+  h_Q1_dr->Scale(1./h_Q1_dr->Integral("width"));
   h_Q1_dr->Write();
-  h_Q2_dr->Scale(1./h_Q2_dr->Integral());
+  h_Q2_dr->Scale(1./h_Q2_dr->Integral("width"));
   h_Q2_dr->Write();
-  h_Nu_dr->Scale(1./h_Nu_dr->Integral());
+  h_Nu_dr->Scale(1./h_Nu_dr->Integral("width"));
   h_Nu_dr->Write();
-  h_Lep_dr->Scale(1./h_Lep_dr->Integral());
+  h_Lep_dr->Scale(1./h_Lep_dr->Integral("width"));
   h_Lep_dr->Write();
 
   cout << "all " << nAll << ", matchable " << nMatchable << " (" << nMatchable/(float)nAll << ")"<<endl;
