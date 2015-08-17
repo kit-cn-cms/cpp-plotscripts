@@ -1,5 +1,5 @@
 all: plot
 
 % : %.cc
-	g++ `root-config --cflags --libs` $? -o $@
+	g++  $? -o $@ -I`root-config --incdir` `root-config --libs`
 
